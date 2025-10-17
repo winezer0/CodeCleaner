@@ -1,0 +1,97 @@
+presets:
+  common:
+    description: "常见的清理文档"
+    stored:
+    remove:
+      - jpg
+      - jpeg
+      - png
+      - bmp
+      - ico
+      - css
+      - woff
+      - woff2
+      - mp3
+      - mp4
+      - mp4
+      - zip
+      - tar.gz
+    rmdirs:
+      - ".git"
+  go:
+    description: "Golang 项目清理"
+    stored:
+      - go
+      - mod
+      - sum
+      - gofumpt
+      - golangci.yml
+    remove:
+      - exe
+      - dll
+      - so
+      - jpg
+      - png
+      - pdf
+      - zip
+      - tar.gz
+      - tmp
+      - log
+    rmdirs:
+      - ".git"
+  python:
+    description: "Python 项目清理"
+    stored:
+      - py
+      - pyi
+      - requirements.txt
+      - setup.py
+      - pyproject.toml
+    remove:
+      - pyc
+      - pyo
+      - pyd
+      - so
+      - egg-info
+      - dist
+      - build
+      - __pycache__
+    rmdirs:
+      - ".git"
+      - "testfiles"
+  web:
+    description: "Web 项目清理"
+    stored:
+      - html
+      - css
+      - js
+      - ts
+      - jsx
+      - tsx
+      - vue
+      - json
+      - yaml
+      - yml
+    remove:
+      - jpg
+      - jpeg
+      - png
+      - gif
+      - svg
+      - ico
+      - pdf
+      - doc
+      - docx
+      - zip
+      - rar
+    rmdirs:
+      - ".git"
+      - "testfiles"
+  test:
+    description: "测试配置"
+    stored: []
+    remove:
+      - tmp
+      - log
+    rmdirs:
+      - "testfiles"
