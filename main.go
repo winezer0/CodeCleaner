@@ -16,11 +16,12 @@ import (
 // Options command line options
 type Options struct {
 	Path   string `short:"p" long:"path" description:"扫描起始目录路径" required:"true"`
-	Preset string `short:"r" long:"preset" description:"使用预设清理规则（默认common）" default:"common"`
+	Preset string `short:"P" long:"preset" description:"使用预设清理规则（默认common）" default:"common"`
 	Config string `short:"c" long:"config" description:"自定义 YAML 配置文件路径" default:".cleaner.yaml"`
 	Stats  bool   `short:"s" long:"stats" description:"启用统计模式：显示目录下所有文件的类型数量分布"`
 	Try    bool   `short:"t" long:"try" description:"预览尝试模式：显示将删除的文件，不执行删除"`
 	White  bool   `short:"w" long:"white" description:"白名单模式：仅保留预设中 stored 指定的文件后缀类型"`
+	Empty  bool   `short:"e" long:"empty" description:"移除空文件：启用时移除空目录和空文件路径"`
 
 	// Log configuration
 	LogFile       string `long:"lf" description:"Log file path (default: null)"`
@@ -95,7 +96,7 @@ func main() {
 		}
 
 		// 创建清理器并运行
-		cleaner := cleaner.NewCleaner(opts.Path, *preset, opts.Try, opts.White)
+		cleaner := cleaner.NewCleaner(opts.Path, *preset, opts.Try, opts.White, opts.Empty)
 		if err := cleaner.RunClean(); err != nil {
 			logging.Fatalf("清理操作失败: %v", err)
 		}

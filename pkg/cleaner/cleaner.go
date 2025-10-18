@@ -21,11 +21,12 @@ type Cleaner struct {
 	Rmdirs      []string      // 待删除目录名列表（仅匹配目录名，不限制层级）
 	Try         bool          // 试运行模式（仅统计不删除）
 	White       bool          // 白名单模式（保留Stored列表，删除其他）
+	Empty       bool          // 移除空目录和空文件
 	ProgressInt time.Duration // 进度输出时间间隔，默认5秒
 }
 
 // NewCleaner 创建清理器实例
-func NewCleaner(path string, preset config.PresetConfig, try, white bool) *Cleaner {
+func NewCleaner(path string, preset config.PresetConfig, try, white, empty bool) *Cleaner {
 	return &Cleaner{
 		Path:        path,
 		Stored:      preset.Stored,
@@ -33,6 +34,7 @@ func NewCleaner(path string, preset config.PresetConfig, try, white bool) *Clean
 		Rmdirs:      preset.RmDirs,
 		Try:         try,
 		White:       white,
+		Empty:       empty,
 		ProgressInt: 5 * time.Second, // 默认5秒输出一次进度
 	}
 }
@@ -73,7 +75,7 @@ func (c *Cleaner) RunClean() error {
 	// 预处理配置参数（统一格式）
 	stored := preprocessExtensions(c.Stored)
 	remove := preprocessExtensions(c.Remove)
-	targetDirNames := preprocessDirNames(c.Rmdirs)
+	rmdirs := preprocessDirNames(c.Rmdirs)
 
 	// 验证根路径有效性
 	rootAbsPath, err := filepath.Abs(c.Path)
@@ -112,7 +114,7 @@ func (c *Cleaner) RunClean() error {
 		}
 
 		// 优先处理目录删除
-		if handled, err := c.handleRmdirs(path, info, targetDirNames, rootAbsPath, &totalCount, &deletedCount, &errorCount); err != nil {
+		if handled, err := c.handleRmdirs(path, info, rmdirs, &totalCount, &deletedCount, &errorCount); err != nil {
 			return err
 		} else if handled {
 			return nil
@@ -139,53 +141,32 @@ func (c *Cleaner) RunClean() error {
 }
 
 // 处理目录删除逻辑（基于目录名匹配）
-func (c *Cleaner) handleRmdirs(
-	path string,
-	info os.FileInfo,
-	targetDirNames []string,
-	rootAbsPath string,
-	totalCount, deletedCount, errorCount *int,
-) (bool, error) {
-	if len(targetDirNames) == 0 || !info.IsDir() {
-		return false, nil
-	}
-
-	currentDirName := strings.ToLower(filepath.Base(path))
-
-	// 检查当前目录名是否在目标列表中
-	isTargetDir := false
-	for _, targetName := range targetDirNames {
-		if currentDirName == targetName {
-			isTargetDir = true
-			break
-		}
-	}
-	if !isTargetDir {
-		return false, nil
-	}
-
-	// 确认目录在根路径范围内（二次校验）
-	if !isSubPath(path, rootAbsPath) {
-		logging.Warnf("目标目录超出根目录范围，跳过删除: %s", path)
+func (c *Cleaner) handleRmdirs(path string, info os.FileInfo, rmdirs []string, totalCount, deletedCount, errorCount *int) (bool, error) {
+	if len(rmdirs) == 0 || !info.IsDir() {
 		return false, nil
 	}
 
 	*totalCount++
-	if c.Try {
-		logging.Infof("[试运行] 将要删除目录: %s", path)
-		*deletedCount++
+	currDirName := strings.ToLower(filepath.Base(path))
+
+	// 检查当前目录名是否在目标列表中
+	if isDirInList(currDirName, rmdirs) || (c.Empty && IsDirEmpty(path)) {
+		if c.Try {
+			logging.Infof("[试运行] 将要删除目录: %s", path)
+			*deletedCount++
+		} else {
+			// 实际删除目录（递归删除所有内容）
+			if err := os.RemoveAll(path); err != nil {
+				logging.Warnf("删除目录失败: %s - %v", path, err)
+				*errorCount++
+			} else {
+				logging.Infof("已删除目录: %s", path)
+				*deletedCount++
+			}
+		}
 		return true, filepath.SkipDir
 	}
-
-	// 实际删除目录（递归删除所有内容）
-	if err := os.RemoveAll(path); err != nil {
-		logging.Warnf("删除目录失败: %s - %v", path, err)
-		*errorCount++
-	} else {
-		logging.Infof("已删除目录: %s", path)
-		*deletedCount++
-	}
-	return true, filepath.SkipDir
+	return false, nil
 }
 
 // 处理文件删除逻辑
@@ -206,7 +187,7 @@ func (c *Cleaner) handleFiles(path string, storedExts, removeExts []string, tota
 	}
 
 	// 普通模式处理（使用Remove列表）
-	if isExtensionInList(ext, removeExts) {
+	if isExtensionInList(ext, removeExts) || (c.Empty && IsFileEmpty(path)) {
 		c.deleteFile(path, deletedCount, errorCount)
 	}
 }
