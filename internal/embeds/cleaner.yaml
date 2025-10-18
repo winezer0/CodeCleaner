@@ -2,10 +2,6 @@ presets:
   common:
     description: "常见的清理文档"
     stored:
-      - ini
-      - prop
-      - properties
-      - xml
     remove:
       # 图片格式（原有+补充）
       - jpg
@@ -107,3 +103,19 @@ presets:
       - ".sublime"
       # 系统/工具目录
       - "__pycache__"
+  java:
+    description: "常见Java文件清理文档"
+    stored:
+      - java
+      - class
+      - jsp
+      - jar
+      - groovy
+      - ini
+      - prop
+      - properties
+      - xml
+      - yml
+      - yaml
+    remove:
+    rmdirs:

@@ -6,14 +6,6 @@ import (
 	"path/filepath"
 )
 
-// PresetConfig 预设配置结构
-type PresetConfig struct {
-	Description string   `yaml:"description"`
-	Stored      []string `yaml:"stored"`
-	Remove      []string `yaml:"remove"`
-	RmDirs      []string `yaml:"rmdirs"`
-}
-
 // Config 配置文件结构
 type Config struct {
 	Presets map[string]PresetConfig `yaml:"presets"`
@@ -27,14 +19,14 @@ func LoadConfig(configPath string) (*Config, error) {
 			".cleaner.yaml",
 			filepath.Join(os.Getenv("HOME"), ".config", "cleaner.yaml"),
 		}
-		
+
 		for _, path := range configPaths {
 			if _, err := os.Stat(path); err == nil {
 				configPath = path
 				break
 			}
 		}
-		
+
 		if configPath == "" {
 			return &Config{Presets: make(map[string]PresetConfig)}, nil
 		}

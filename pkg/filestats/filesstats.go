@@ -1,4 +1,4 @@
-package stats
+package filestats
 
 import (
 	"fmt"
@@ -14,20 +14,20 @@ type FileStats struct {
 	Count     int
 }
 
-// RunStats 执行统计功能
-func RunStats(path string) error {
+// RunStatsExt 执行统计功能
+func RunStatsExt(path string) error {
 	// 执行统计
 	statsMap, err := collectStats(path)
 	if err != nil {
 		return err
 	}
-	
+
 	// 执行排序
 	statsList := sortStats(statsMap)
-	
+
 	// 执行输出
 	printStats(statsList, path)
-	
+
 	return nil
 }
 

@@ -41,11 +41,13 @@ func preprocessExtensions(exts []string) []string {
 
 // 检查path是否为parent的子路径（包含自身）
 func isSubPath(path, parent string) bool {
+	path = filepath.Clean(path)
+	parent = filepath.Clean(parent)
 	rel, err := filepath.Rel(parent, path)
 	if err != nil {
 		return false
 	}
-	return !strings.HasPrefix(rel, "..")
+	return !strings.HasPrefix(rel, "..") && rel != ".."
 }
 
 // 预处理目录名（统一格式，可选大小写转换）
@@ -60,8 +62,8 @@ func preprocessDirNames(names []string) []string {
 	return result
 }
 
-// IsDirEmpty 判断指定路径的目录是否为空
-func IsDirEmpty(dirPath string) bool {
+// IsEmptyDir 判断指定路径的目录是否为空
+func IsEmptyDir(dirPath string) bool {
 	// 打开目录
 	dir, err := os.Open(dirPath)
 	if err != nil {
@@ -79,8 +81,8 @@ func IsDirEmpty(dirPath string) bool {
 	return len(entries) == 0
 }
 
-// IsFileEmpty 判断指定路径的文件是否为空
-func IsFileEmpty(filePath string) bool {
+// IsEmptyFile 判断指定路径的文件是否为空
+func IsEmptyFile(filePath string) bool {
 	// 获取文件信息
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
