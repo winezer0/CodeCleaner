@@ -20,7 +20,7 @@ const (
 	AppName      = "CodeCleaner"
 	AppShortDesc = "代码文件清理工具"
 	AppLongDesc  = "代码文件清理工具, 清理指定目录中的非代码文件"
-	AppVersion   = "0.0.4"
+	AppVersion   = "0.0.5"
 	BuildDate    = "2025-10-22"
 )
 
@@ -111,10 +111,11 @@ func main() {
 		// 获取preset配置
 		var preset *config.PresetConfig
 
-		if strings.HasSuffix(opts.Preset, "ext:") {
+		if strings.HasPrefix(opts.Preset, "ext:") {
 			// 从输入命令行中中获取 preset
 			extStr := strings.Replace(opts.Preset, "ext:", "", 1)
-			extList := cmdutils.ListUnique(cmdutils.ParseExtensionList(extStr, true))
+			extList := cmdutils.ListUnique(cmdutils.ParseCommaStrToList(extStr, true))
+			logging.Infof("用户自定义 preset extension: %+v", extList)
 
 			if opts.EnWhite {
 				preset = config.NewPresetConfig("临时白名单", extList, nil, nil)

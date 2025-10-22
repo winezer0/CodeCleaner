@@ -21,22 +21,3 @@ func ParseCommaStrToList(CommaStr string, toLower bool) []string {
 	}
 	return result
 }
-
-// EnsurePrefix 如果数组中的某元素没有前缀，则为其添加前缀
-func EnsurePrefix(extList []string, prefix string) []string {
-	if len(extList) > 0 {
-		for i, ext := range extList {
-			if !strings.HasPrefix(ext, prefix) {
-				extList[i] = prefix + ext
-			}
-		}
-	}
-	return extList
-}
-
-// ParseExtensionList 解析逗号分隔的扩展名列表
-func ParseExtensionList(extensionStr string, toLower bool) []string {
-	result := ParseCommaStrToList(extensionStr, toLower)
-	result = EnsurePrefix(result, ".")
-	return result
-}
