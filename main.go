@@ -15,9 +15,18 @@ import (
 	"strings"
 )
 
+// 版本信息常量（根据实际情况修改）
+const (
+	AppName      = "CodeCleaner"
+	AppShortDesc = "代码文件清理工具"
+	AppLongDesc  = "代码文件清理工具, 清理指定目录中的非代码文件"
+	AppVersion   = "0.0.4"
+	BuildDate    = "2025-10-22"
+)
+
 // Options command line options
 type Options struct {
-	Path         string `short:"p" long:"path" description:"扫描起始目录路径" required:"true"`
+	Path         string `short:"p" long:"path" description:"扫描起始目录路径"`
 	Preset       string `short:"P" long:"preset" description:"使用预设清理规则(默认common) 或 ext:逗号分割的后缀列表 (如ext: exe,txt)" default:"common"`
 	PresetConfig string `short:"c" long:"preset_config" description:"自定义 YAML 配置文件路径" default:"cleaner.yaml"`
 
@@ -28,6 +37,7 @@ type Options struct {
 	// 统计信息显示
 	StatsExt bool `short:"s" long:"stats_ext" description:"启用统计模式：显示目录下(后缀类型) 数量分布"`
 	StatsDir bool `short:"S" long:"stats_dir" description:"启用统计模式：显示目录下(目录文件) 数量分布"`
+	Version  bool `short:"v" long:"version" description:"输出版本信息"`
 
 	// Log configuration
 	LogFile       string `long:"lf" description:"Log file path (default: null)"`
@@ -38,9 +48,11 @@ type Options struct {
 func main() {
 	var opts Options
 	parser := flags.NewParser(&opts, flags.Default)
+	// 添加描述信息
+	parser.Name = AppName
 	parser.Usage = "[OPTIONS]"
-	// Custom help information
-	parser.LongDescription = `代码文件清理工具 - 用于清理指定目录中的非代码文件`
+	parser.ShortDescription = AppShortDesc
+	parser.LongDescription = AppLongDesc
 
 	if _, err := parser.Parse(); err != nil {
 		var flagsErr *flags.Error
@@ -59,12 +71,24 @@ func main() {
 	}
 	defer logging.Sync()
 
+	// 新增：判断是否需要显示版本信息
+	if opts.Version {
+		fmt.Printf("CodeClear version %s\n", AppVersion)
+		fmt.Printf("Build Date: %s\n", BuildDate)
+		os.Exit(0) // 显示后退出，不执行后续逻辑
+	}
+
+	// 检查是否输入 Path
+	if opts.Path == "" {
+		logging.Fatalf("必须有指定代码文件所在目录!!!")
+	}
+
 	// 统计模式 目录大小统计
 	if opts.StatsDir {
 		if err := filestats.RunStatsDir(opts.Path); err != nil {
 			logging.Fatalf("目录统计操作失败: %v", err)
 		}
-		return
+		os.Exit(0) // 显示后退出，不执行后续逻辑
 	}
 
 	// 统计模式 文件类型统计
@@ -72,7 +96,7 @@ func main() {
 		if err := filestats.RunStatsExt(opts.Path); err != nil {
 			logging.Fatalf("后缀统计操作失败: %v", err)
 		}
-		return
+		os.Exit(0) // 显示后退出，不执行后续逻辑
 	}
 
 	//生成默认 PresetConfig 配置文件
