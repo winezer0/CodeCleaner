@@ -20,14 +20,14 @@ const (
 	AppName      = "CodeCleaner"
 	AppShortDesc = "代码文件清理工具"
 	AppLongDesc  = "代码文件清理工具, 清理指定目录中的非代码文件"
-	AppVersion   = "0.0.5"
-	BuildDate    = "2025-10-22"
+	AppVersion   = "0.0.6"
+	BuildDate    = "2025-10-23"
 )
 
 // Options command line options
 type Options struct {
 	Path         string `short:"p" long:"path" description:"扫描起始目录路径"`
-	Preset       string `short:"P" long:"preset" description:"使用预设清理规则(默认common) 或 ext:逗号分割的后缀列表 (如ext: exe,txt)" default:"common"`
+	Preset       string `short:"P" long:"preset" description:"使用预设清理规则(默认common) 或 ext/dir:逗号分割的后缀列表 (如ext: exe,txt)"`
 	PresetConfig string `short:"c" long:"preset_config" description:"自定义 YAML 配置文件路径" default:"cleaner.yaml"`
 
 	DryRun  bool `short:"d" long:"dry_run" description:"预览尝试模式：显示将删除的文件，不执行删除"`
@@ -99,49 +99,22 @@ func main() {
 		os.Exit(0) // 显示后退出，不执行后续逻辑
 	}
 
-	//生成默认 PresetConfig 配置文件
-	if fileutils.IsEmptyFile(opts.PresetConfig) {
-		fileutils.MakeDirs(opts.PresetConfig, true)
-		fileutils.WriteAny(opts.PresetConfig, embeds.GetConfig())
-		logging.Debugf("Success creat config from embed: %v", opts.PresetConfig)
-	}
-
 	// 按后缀进行清理
 	if opts.Preset != "" {
-		// 获取preset配置
-		var preset *config.PresetConfig
-
-		if strings.HasPrefix(opts.Preset, "ext:") {
-			// 从输入命令行中中获取 preset
-			extStr := strings.Replace(opts.Preset, "ext:", "", 1)
-			extList := cmdutils.ListUnique(cmdutils.ParseCommaStrToList(extStr, true))
-			logging.Infof("用户自定义 preset extension: %+v", extList)
-
-			if opts.EnWhite {
-				preset = config.NewPresetConfig("临时白名单", extList, nil, nil)
-			} else {
-				preset = config.NewPresetConfig("临时黑名单", nil, extList, nil)
-			}
-		} else {
-			// 从配置文件中获取 preset
-			presetConfig, err := config.LoadConfig(opts.PresetConfig)
-			if err != nil {
-				logging.Fatalf("load config: %s error: %v", opts.PresetConfig, err)
-			}
-
-			if preset, _ = presetConfig.GetPreset(opts.Preset); preset == nil {
-				logging.Fatalf("config file %s not contain key: %s and preset not like (like xxx,xxx)", opts.PresetConfig, opts.Preset)
-			}
-		}
+		preset := initPresetConfig(opts.Preset, opts.PresetConfig)
 
 		// 创建清理器并运行
 		if preset != nil {
-			suffixCleaner := cleaner.NewCleaner(opts.Path, *preset, opts.EnWhite, opts.DryRun)
-			if err := suffixCleaner.RunClean(); err != nil {
-				logging.Errorf("清理后缀文件列表失败: %v", err)
+			if (opts.EnWhite && len(preset.Stored) > 0) || (!opts.EnWhite && len(preset.Stored)+len(preset.RmDirs) > 0) {
+				suffixCleaner := cleaner.NewCleaner(opts.Path, *preset, opts.EnWhite, opts.DryRun)
+				if err := suffixCleaner.RunClean(); err != nil {
+					logging.Fatalf("清理后缀文件列表失败: %v", err)
+				}
+			} else {
+				logging.Fatalf("当前 Preset (%s) 未配置有效数据: %s", opts.Preset, cmdutils.AnyToJson(preset))
 			}
 		} else {
-			logging.Errorf("init preset config err from input: %s", opts.Preset)
+			logging.Fatalf("当前 Preset (%s) 配置初始化详细配置失败!", opts.Preset)
 		}
 	}
 
@@ -149,7 +122,38 @@ func main() {
 	if opts.RmEmpty {
 		emptyCleaner := cleaner.NewEmptyCleaner(opts.Path, opts.DryRun)
 		if err := emptyCleaner.RunClean(); err != nil {
-			logging.Errorf("清理空白文件目录失败: %v", err)
+			logging.Fatalf("清理空白文件目录失败: %v", err)
 		}
+	}
+}
+
+func initPresetConfig(presetStr string, presetFile string) *config.PresetConfig {
+	// 获取preset配置
+	var preset *config.PresetConfig
+	if strings.Contains(presetStr, "ext:") || strings.Contains(presetStr, "dir:") {
+		// 从输入命令行中解析出 preset
+		extList, dirList := cmdutils.ParseCmdExtDir(presetStr)
+		extList = cmdutils.ListUnique(extList, true)
+		dirList = cmdutils.ListUnique(dirList, true) // 仅在黑名单模式下有效,用于删除自定义目录，很少用
+		preset = config.NewPresetConfig("临时名单", extList, extList, dirList)
+		logging.Infof("cmd init preset: %s", cmdutils.AnyToJson(preset))
+	} else {
+		// 从配置文件中获取 preset
+		checkAndInitPresetFile(presetFile)
+		if conf, err := config.LoadConfig(presetFile); err != nil {
+			logging.Errorf("load config: %s error: %v", conf, err)
+		} else if preset, _ = conf.GetPreset(presetStr); preset == nil {
+			logging.Errorf("config %s not contain key: %s and custom preset not like (like ext:xxx,xxx)", conf, presetStr)
+		}
+	}
+	return preset
+}
+
+// checkAndInitPresetFile presetFile为空时生成默认配置
+func checkAndInitPresetFile(presetFile string) {
+	if fileutils.IsEmptyFile(presetFile) {
+		fileutils.MakeDirs(presetFile, true)
+		fileutils.WriteAny(presetFile, embeds.GetConfig())
+		logging.Debugf("Success creat config from embed: %v", presetFile)
 	}
 }
