@@ -18,10 +18,10 @@ import (
 // 版本信息常量（根据实际情况修改）
 const (
 	AppName      = "CodeCleaner"
-	AppShortDesc = "代码文件清理工具"
-	AppLongDesc  = "代码文件清理工具, 清理指定目录中的非代码文件"
+	AppShortDesc = "ISEC 代码文件清理工具"
+	AppLongDesc  = "ISEC 代码文件清理工具, 清理指定目录中的非代码文件"
 	AppVersion   = "0.0.6"
-	BuildDate    = "2025-10-23"
+	BuildDate    = "2025-10-26"
 )
 
 // Options command line options
