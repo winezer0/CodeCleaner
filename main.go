@@ -20,8 +20,8 @@ const (
 	AppName      = "CodeCleaner"
 	AppShortDesc = "ISEC 代码文件清理工具"
 	AppLongDesc  = "ISEC 代码文件清理工具, 清理指定目录中的非代码文件"
-	AppVersion   = "0.0.6"
-	BuildDate    = "2025-10-26"
+	AppVersion   = "0.0.7"
+	BuildDate    = "2025-10-28"
 )
 
 // Options command line options
