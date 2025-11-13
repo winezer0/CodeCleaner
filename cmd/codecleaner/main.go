@@ -10,9 +10,11 @@ import (
 	"codecleaner/pkg/logging"
 	"errors"
 	"fmt"
-	"github.com/jessevdk/go-flags"
 	"os"
+	"os/exec"
 	"strings"
+
+	"github.com/jessevdk/go-flags"
 )
 
 // 版本信息常量（根据实际情况修改）
@@ -20,8 +22,8 @@ const (
 	AppName      = "CodeCleaner"
 	AppShortDesc = "ISEC 代码文件清理工具"
 	AppLongDesc  = "ISEC 代码文件清理工具, 清理指定目录中的非代码文件"
-	AppVersion   = "0.0.7"
-	BuildDate    = "2025-10-28"
+	AppVersion   = "0.0.8"
+	BuildDate    = "2026-02-27"
 )
 
 // Options command line options
@@ -30,9 +32,10 @@ type Options struct {
 	Preset       string `short:"P" long:"preset" description:"使用预设清理规则(默认common) 或 ext/dir:逗号分割的后缀列表 (如ext: exe,txt)"`
 	PresetConfig string `short:"c" long:"preset_config" description:"自定义 YAML 配置文件路径" default:"cleaner.yaml"`
 
-	DryRun  bool `short:"d" long:"dry_run" description:"预览尝试模式：显示将删除的文件，不执行删除"`
-	EnWhite bool `short:"w" long:"en_white" description:"白名单模式：仅保留预设中 stored 指定的文件后缀类型"`
-	RmEmpty bool `short:"e" long:"rm_empty" description:"移除空文件：启用时移除空目录和空文件路径"`
+	DryRun     bool `short:"d" long:"dry_run" description:"预览尝试模式：显示将删除的文件，不执行删除"`
+	EnWhite    bool `short:"w" long:"en_white" description:"白名单模式：仅保留预设中 stored 指定的文件后缀类型"`
+	RmEmpty    bool `short:"e" long:"rm_empty" description:"移除空文件：启用时移除空目录和空文件路径"`
+	JsBeautify bool `short:"j" long:"js-beautify" description:"格式化js: 调用js-beautify格式化JS文件"`
 
 	// 统计信息显示
 	StatsExt bool `short:"s" long:"stats_ext" description:"启用统计模式：显示目录下(后缀类型) 数量分布"`
@@ -73,9 +76,16 @@ func main() {
 
 	// 新增：判断是否需要显示版本信息
 	if opts.Version {
-		fmt.Printf("CodeClear version %s\n", AppVersion)
+		fmt.Printf("%s version %s\n", AppName, AppVersion)
 		fmt.Printf("Build Date: %s\n", BuildDate)
 		os.Exit(0) // 显示后退出，不执行后续逻辑
+	}
+
+	// 检查 js-beautify 依赖
+	if opts.JsBeautify {
+		if err := exec.Command("js-beautify", "--version").Run(); err != nil {
+			logging.Fatalf("未检测到 js-beautify 命令，请确保已安装: npm install -g js-beautify")
+		}
 	}
 
 	// 检查是否输入 Path
@@ -115,6 +125,14 @@ func main() {
 			}
 		} else {
 			logging.Fatalf("当前 Preset (%s) 配置初始化详细配置失败!", opts.Preset)
+		}
+	}
+
+	// JS 格式化
+	if opts.JsBeautify {
+		jsCleaner := cleaner.NewJsCleaner(opts.Path, opts.DryRun)
+		if err := jsCleaner.RunClean(); err != nil {
+			logging.Fatalf("JS格式化失败: %v", err)
 		}
 	}
 

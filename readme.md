@@ -11,6 +11,7 @@
 - 默认黑名单模式(仅移除指定后缀或预设后缀)
 - 支持白名单模式(仅保留指定后缀或预设后缀) 
 - 后缀配置时, 支持使用 none 表示 无后缀文件
+- 支持 JS 代码格式化 (依赖 node 程序 js-beautify)
 - 使用 YAML 配置文件 实现预设的清理和存储后缀
 
 ## 安装
@@ -39,6 +40,7 @@ Application Options:
   -d, -dry_run         预览尝试模式：显示将删除的文件，不执行删除
   -w, -en_white        白名单模式：仅保留预设中 stored 指定的文件后缀类型
   -e, -rm_empty        移除空文件：启用时移除空目录和空文件路径
+  -j, -js-beautify     格式化js: 调用js-beautify格式化JS文件
   -s, -stats_ext       启用统计模式：显示目录下(后缀类型) 数量分布
   -S, -stats_dir       启用统计模式：显示目录下(目录文件) 数量分布
   -v, -version         输出版本信息
