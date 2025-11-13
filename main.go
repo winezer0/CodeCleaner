@@ -73,7 +73,7 @@ func main() {
 
 	// 新增：判断是否需要显示版本信息
 	if opts.Version {
-		fmt.Printf("CodeClear version %s\n", AppVersion)
+		fmt.Printf("%s version %s\n", AppName, AppVersion)
 		fmt.Printf("Build Date: %s\n", BuildDate)
 		os.Exit(0) // 显示后退出，不执行后续逻辑
 	}
