@@ -90,7 +90,7 @@ func sortStats(statsMap map[string]*FileStats) []*FileStats {
 // printStats 进行结果输出
 func printStats(statsList []*FileStats, path string) {
 	// 输出统计结果
-	fmt.Printf("\n文件类型统计 (%s):\n", path)
+	fmt.Printf("\nfile type statistics (%s):\n", path)
 	fmt.Printf("%-20s %-10s\n", "Suffix", "Counts")
 	fmt.Printf("%-20s %-10s\n", "------", "------")
 
@@ -100,5 +100,5 @@ func printStats(statsList []*FileStats, path string) {
 		extensions = append(extensions, stat.Extension)
 		fmt.Printf("%-20s %-10d\n", stat.Extension, stat.Count)
 	}
-	fmt.Printf("\n所有后缀 (%d): %s\n", len(extensions), strings.Join(extensions, ","))
+	fmt.Printf("\nall suffixes (%d): %s\n", len(extensions), strings.Join(extensions, ","))
 }

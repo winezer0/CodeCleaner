@@ -2,58 +2,59 @@ package cleaner
 
 import (
 	"codecleaner/internal/config"
-	"codecleaner/pkg/logging"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/winezer0/xutils/progress"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/schollz/progressbar/v3"
+	"github.com/winezer0/xutils/logging"
 )
 
-// Cleaner 清理选项
-type Cleaner struct {
-	Path        string        // 根目录路径
-	Stored      []string      // 白名单扩展名列表
-	Remove      []string      // 移除扩展名列表（兼容旧参数）
-	Rmdirs      []string      // 待删除目录名列表（仅匹配目录名，不限制层级）
-	DryRun      bool          // 模拟试运行模式（仅统计不删除）
-	EnWhite     bool          // 白名单模式（保留Stored列表，删除其他）
-	ProgressInt time.Duration // 进度输出时间间隔，默认 10 秒
+// SuffixCleaner 清理选项
+type SuffixCleaner struct {
+	Path    string   // 根目录路径
+	Stored  []string // 白名单扩展名列表
+	Remove  []string // 移除扩展名列表（兼容旧参数）
+	Rmdirs  []string // 待删除目录名列表（仅匹配目录名，不限制层级）
+	DryRun  bool     // 模拟试运行模式（仅统计不删除）
+	EnWhite bool     // 白名单模式（保留Stored列表，删除其他）
+
+	bar *progressbar.ProgressBar
 }
 
-// NewCleaner 创建清理器实例
-func NewCleaner(path string, preset config.PresetConfig, enWhite, dryRun bool) *Cleaner {
-	return &Cleaner{
-		Path:        path,
-		Stored:      preset.Stored,
-		Remove:      preset.Remove,
-		Rmdirs:      preset.RmDirs,
-		DryRun:      dryRun,
-		EnWhite:     enWhite,
-		ProgressInt: 10 * time.Second, // 默认 10 秒输出一次进度
+// NewSuffixCleaner 创建清理器实例
+func NewSuffixCleaner(path string, preset config.PresetConfig, enWhite, dryRun bool) *SuffixCleaner {
+	bar := progress.NewSpinner(fmt.Sprintf("suffix clean (%s) ...", getMode(dryRun)))
+	return &SuffixCleaner{
+		Path:    path,
+		Stored:  preset.Stored,
+		Remove:  preset.Remove,
+		Rmdirs:  preset.RmDirs,
+		DryRun:  dryRun,
+		EnWhite: enWhite,
+		bar:     bar,
 	}
 }
 
 // RunClean 执行清理操作
-func (c *Cleaner) RunClean() error {
+func (c *SuffixCleaner) RunClean() error {
 	// 初始化统计变量
 	var (
 		totalCount   int
 		deletedCount int
 		errorCount   int
 		startTime    = time.Now()
-		lastProgress = startTime // 记录上次进度输出时间
 	)
 
-	mode := "实际"
-	if c.DryRun {
-		mode = "模拟"
-	}
-	fmt.Printf("开始(%s)扫描和删除文件...\n", mode)
+	mode := getMode(c.DryRun)
+	fmt.Printf("start (%s) scanning and deleting files...\n", mode)
 
 	// 上下文管理（处理中断信号）
 	ctx, cancel := context.WithCancel(context.Background())
@@ -65,7 +66,7 @@ func (c *Cleaner) RunClean() error {
 	go func() {
 		select {
 		case <-sigChan:
-			fmt.Println("\n收到中断信号，正在停止操作...")
+			fmt.Println("\nreceived interrupt signal, stopping operation...")
 			cancel()
 		case <-ctx.Done():
 		}
@@ -79,7 +80,7 @@ func (c *Cleaner) RunClean() error {
 	// 验证根路径有效性
 	rootAbsPath, err := filepath.Abs(c.Path)
 	if err != nil {
-		return fmt.Errorf("目录路径无效: %v", err)
+		return fmt.Errorf("invalid dir path: %v", err)
 	}
 
 	// 替换为 filepath.WalkDir 提升性能
@@ -93,22 +94,26 @@ func (c *Cleaner) RunClean() error {
 
 		// 处理文件访问错误
 		if err != nil {
-			logging.Warnf("访问路径失败: %s - %v", path, err)
+			logging.Warnf("failed to access path: %s - %v", path, err)
 			errorCount++
 			return nil
 		}
 
+		// 更新进度条
+		_ = c.bar.Add(1)
+		c.bar.Describe(fmt.Sprintf("suffix clean ... | deleted: %d | errors: %d", deletedCount, errorCount))
+
 		// 获取文件信息（WalkDir需要显式获取，减少不必要的系统调用）
 		info, err := d.Info()
 		if err != nil {
-			logging.Warnf("获取信息失败: %s - %v", path, err)
+			logging.Warnf("failed to get info: %s - %v", path, err)
 			errorCount++
 			return nil
 		}
 
 		// 验证当前路径是否在根路径范围内（防止路径穿越）
 		if !isSubPath(path, rootAbsPath) {
-			logging.Warnf("超出目录范围: %s not in %s", path, rootAbsPath)
+			logging.Warnf("path out of range: %s not in %s", path, rootAbsPath)
 			return filepath.SkipDir
 		}
 
@@ -126,38 +131,33 @@ func (c *Cleaner) RunClean() error {
 			}
 		}
 
-		// 按时间间隔输出进度（每ProgressInt输出一次）
-		now := time.Now()
-		if now.Sub(lastProgress) >= c.ProgressInt && totalCount > 0 {
-			c.printProgress(totalCount, deletedCount, errorCount, startTime)
-			lastProgress = now // 更新上次输出时间
-		}
-
 		return nil
 	})
 
 	// 输出最终统计（确保最后一次进度被打印）
+	_ = c.bar.Finish() // Ensure bar is finished before summary
 	c.printSummary(totalCount, deletedCount, errorCount, startTime, err)
 	return nil
 }
 
 // 处理目录删除逻辑（基于目录名匹配）
-func (c *Cleaner) handleRmdirs(path string, rmdirs []string, totalCount, deletedCount, errorCount *int) bool {
+func (c *SuffixCleaner) handleRmdirs(path string, rmdirs []string, totalCount, deletedCount, errorCount *int) bool {
 	*totalCount++
 	currDirName := strings.ToLower(filepath.Base(path))
+	_ = c.bar.Clear()
 
 	// 检查当前目录名是否在目标列表中
 	if isDirInList(currDirName, rmdirs) {
 		if c.DryRun {
-			logging.Infof("[模拟] 将要删除目录: %s", path)
+			logging.Infof("[dryrun] would delete dir: %s", path)
 			*deletedCount++
 		} else {
 			// 实际删除目录（递归删除所有内容）
 			if err := os.RemoveAll(path); err != nil {
-				logging.Warnf("删除目录失败: %s - %v", path, err)
+				logging.Warnf("failed to delete dir: %s - %v", path, err)
 				*errorCount++
 			} else {
-				logging.Infof("成功删除目录: %s", path)
+				logging.Infof("successfully deleted dir: %s", path)
 				*deletedCount++
 			}
 		}
@@ -167,26 +167,29 @@ func (c *Cleaner) handleRmdirs(path string, rmdirs []string, totalCount, deleted
 }
 
 // 处理文件删除逻辑
-func (c *Cleaner) handleFiles(path string, storedExts, removeExts []string, totalCount, deletedCount, errorCount *int) {
+func (c *SuffixCleaner) handleFiles(path string, storedExts, removeExts []string, totalCount, deletedCount, errorCount *int) {
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
 	*totalCount++
+	_ = c.bar.Clear()
 
 	if c.EnWhite {
 		// 白名单模式处理 （使用stored列表）
 		if len(storedExts) == 0 {
-			logging.Warn("白名单模式未配置stored列表，跳过处理")
+			logging.Warn("whitelist mode: no stored list configured, skipping")
 			return
 		}
+
 		if !isExtensionInList(ext, storedExts) {
 			c.deleteFile(path, deletedCount, errorCount)
 		}
-		return
+
 	} else {
 		// 普通模式处理（使用Remove列表）
 		if len(removeExts) == 0 {
-			logging.Warn("黑名单模式未配置remove列表，跳过处理")
+			logging.Warn("blacklist mode: no remove list configured, skipping")
 			return
 		}
+
 		if isExtensionInList(ext, removeExts) {
 			c.deleteFile(path, deletedCount, errorCount)
 		}
@@ -194,43 +197,36 @@ func (c *Cleaner) handleFiles(path string, storedExts, removeExts []string, tota
 }
 
 // 执行文件删除（根据Try模式决定是否实际删除）
-func (c *Cleaner) deleteFile(path string, deletedCount, errorCount *int) {
+func (c *SuffixCleaner) deleteFile(path string, deletedCount, errorCount *int) {
 	if c.DryRun {
-		logging.Infof("[模拟] 将要删除文件: %s", path)
+		logging.Infof("[dryrun] would delete file: %s", path)
 		*deletedCount++
 		return
 	}
 
 	if err := os.Remove(path); err != nil {
-		logging.Warnf("删除文件失败: %s - %v", path, err)
+		logging.Warnf("failed to delete file: %s - %v", path, err)
 		*errorCount++
 	} else {
-		logging.Infof("成功删除文件: %s", path)
+		logging.Infof("successfully deleted file: %s", path)
 		*deletedCount++
 	}
 }
 
-// 定期输出进度信息（按时间间隔触发）
-func (c *Cleaner) printProgress(totalCount, deletedCount, errorCount int, startTime time.Time) {
-	elapsed := time.Since(startTime)
-	rate := float64(deletedCount) / elapsed.Seconds()
-	fmt.Printf("进度: 总计 %d, 已处理 %d, 错误 %d, 速度 %.2f/秒\n", totalCount, deletedCount, errorCount, rate)
-}
-
 // 输出最终统计信息
-func (c *Cleaner) printSummary(total, deleted, errorCount int, startTime time.Time, walkErr error) {
+func (c *SuffixCleaner) printSummary(total, deleted, errorCount int, startTime time.Time, walkErr error) {
 	elapsed := time.Since(startTime).Truncate(time.Second)
-	mode := "实际"
+	mode := "actual"
 	if c.DryRun {
-		mode = "模拟"
+		mode = "dryRun"
 	}
-	fmt.Printf("\n%s清理完成! 用时: %v\n", mode, elapsed)
-	fmt.Printf("统计: 总处理 %d 项（含目录）, 成功处理 %d 项, 错误 %d 项\n", total, deleted, errorCount)
+	fmt.Printf("\n%s cleanup complete! time: %v\n", mode, elapsed)
+	fmt.Printf("stats: total processed %d items (incl dirs), successfully processed %d items, errors %d\n", total, deleted, errorCount)
 
 	if errors.Is(walkErr, context.Canceled) {
-		fmt.Println("清理操作已被用户中断")
+		fmt.Println("cleanup operation interrupted by user")
 	} else if walkErr != nil {
-		fmt.Printf("清理过程中发生错误: %v\n", walkErr)
+		fmt.Printf("error during cleanup: %v\n", walkErr)
 	}
 
 }

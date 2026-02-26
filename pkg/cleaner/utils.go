@@ -1,7 +1,6 @@
 package cleaner
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -62,38 +61,10 @@ func preprocessDirNames(names []string) []string {
 	return result
 }
 
-// IsEmptyDir 判断指定路径的目录是否为空
-func IsEmptyDir(dirPath string) bool {
-	// 打开目录
-	dir, err := os.Open(dirPath)
-	if err != nil {
-		return false
+func getMode(dryRun bool) string {
+	mode := "actual"
+	if dryRun {
+		mode = "dryRun"
 	}
-	defer dir.Close() // 确保目录句柄关闭
-
-	// 读取目录项，最多读取1个（只要有内容就不是空目录）
-	entries, err := dir.Readdir(1)
-	if err != nil {
-		return false
-	}
-
-	// 目录项长度为0表示空目录
-	return len(entries) == 0
-}
-
-// IsEmptyFile 判断指定路径的文件是否为空
-func IsEmptyFile(filePath string) bool {
-	// 获取文件信息
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return false
-	}
-
-	// 验证路径是否为文件（排除目录）
-	if fileInfo.IsDir() {
-		return false
-	}
-
-	// 文件大小为0表示空文件
-	return fileInfo.Size() == 0
+	return mode
 }

@@ -111,7 +111,7 @@ func sortDirsStats(stats map[string]*DirStats) []*DirStats {
 // printDirsStats 输出目录统计信息
 func printDirsStats(statsList []*DirStats, rootPath string) {
 	// 输出统计结果
-	fmt.Printf("\n目录文件大小统计 (%s):\n", rootPath)
+	fmt.Printf("\ndir file size statistics (%s):\n", rootPath)
 	fmt.Printf("%-100s %-10s %-15s\n", "Directory", "Files", "Size")
 	fmt.Printf("%-100s %-10s %-15s\n", "----------", "-----", "----")
 

@@ -1,7 +1,7 @@
 package config
 
 import (
-	"gopkg.in/yaml.v3"
+	"github.com/winezer0/xutils/utils"
 	"os"
 	"path/filepath"
 )
@@ -32,13 +32,8 @@ func LoadConfig(configPath string) (*Config, error) {
 		}
 	}
 
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, err
-	}
-
 	var config Config
-	err = yaml.Unmarshal(data, &config)
+	err := utils.LoadYAML(configPath, &config)
 	if err != nil {
 		return nil, err
 	}
