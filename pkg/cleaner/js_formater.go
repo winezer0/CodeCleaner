@@ -2,26 +2,33 @@ package cleaner
 
 import (
 	"fmt"
-	"github.com/winezer0/xutils/progress"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"github.com/winezer0/xutils/progress"
 
 	"github.com/winezer0/xutils/logging"
 )
 
 // JSFormater JS格式化清理器
 type JSFormater struct {
-	Path   string // 根目录路径
-	DryRun bool   // 模拟模式
+	Path    string // 根目录路径
+	DryRun  bool   // 模拟模式
+	Workers int    // 并发工作线程数
 }
 
-// NewJsCleaner 创建JS清理器实例
-func NewJsCleaner(path string, dryRun bool) *JSFormater {
+// NewJSFormater 创建JS清理器实例
+func NewJSFormater(path string, dryRun bool, workers int) *JSFormater {
+	if workers <= 0 {
+		workers = 1
+	}
 	return &JSFormater{
-		Path:   path,
-		DryRun: dryRun,
+		Path:    path,
+		DryRun:  dryRun,
+		Workers: workers,
 	}
 }
 
@@ -56,16 +63,14 @@ func (c *JSFormater) RunClean() error {
 	var count int
 	var errorCount int
 
-	// 初始化进度条
-	bar := progress.NewSpinner(fmt.Sprintf("js format (%s) ...", mode))
+	// 第一步：收集所有符合条件的 JS 文件
+	logging.Infof("stage 1/2: collect all the js files ...")
+	var jsFiles []string
+	collectBar := progress.NewSpinner(fmt.Sprintf("collect JS files (%s) ...", mode))
 
 	err = filepath.WalkDir(rootAbsPath, func(path string, d os.DirEntry, err error) error {
-		// 更新进度条
-		_ = bar.Add(1)
-		bar.Describe(fmt.Sprintf("js format | handle: %d | error: %d", count, errorCount))
-
 		if err != nil {
-			_ = bar.Clear()
+			_ = collectBar.Clear()
 			logging.Warnf("access path error: %s - %v", path, err)
 			errorCount++
 			return nil
@@ -75,30 +80,76 @@ func (c *JSFormater) RunClean() error {
 			return nil
 		}
 
-		// 仅处理 js 文件
 		if isJSFile(path) {
-			count++
-			if c.DryRun {
-				// logging.Infof("[DryRun] Would format: %s", path) // Reduce log noise for progress bar
-				return nil
-			}
-
-			// 执行 js-beautify
-			cmd := exec.Command("js-beautify", "-r", path)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				logging.Errorf("js format error %s: %v, cmd output: %s", path, err, string(output))
-				errorCount++
-			} else {
-				logging.Debugf("js format success: %s", path)
-			}
-			_ = bar.Clear()
+			jsFiles = append(jsFiles, path)
+			_ = collectBar.Add(1)
 		}
 		return nil
 	})
+	_ = collectBar.Finish()
 
-	_ = bar.Finish()
+	if err != nil {
+		return fmt.Errorf("scan error: %v", err)
+	}
+
+	totalFiles := len(jsFiles)
+	logging.Infof("found %d JS files to process", totalFiles)
+
+	if totalFiles == 0 {
+		return nil
+	}
+
+	// 第二步：执行格式化操作
+	logging.Infof("stage 2/2: format all the js files (workers: %d) ...", c.Workers)
+	formatBar := progress.NewProcessBar(int64(totalFiles), fmt.Sprintf("js format (%s) ...", mode))
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, c.Workers)
+	var mu sync.Mutex
+
+	for i, path := range jsFiles {
+		wg.Add(1)
+		sem <- struct{}{} // Acquire semaphore
+
+		go func(idx int, p string) {
+			defer wg.Done()
+			defer func() { <-sem }() // Release semaphore
+
+			// 更新计数和进度条
+			mu.Lock()
+			_ = formatBar.Add(1)
+			count++
+			currentCount := count
+			currentErrorCount := errorCount
+			formatBar.Describe(fmt.Sprintf("js format | handle: %d/%d | error: %d", currentCount, totalFiles, currentErrorCount))
+			mu.Unlock()
+
+			if c.DryRun {
+				return
+			}
+
+			// 执行 js-beautify
+			cmd := exec.Command("js-beautify", "-r", p)
+			output, cmdErr := cmd.CombinedOutput()
+
+			mu.Lock()
+			if cmdErr != nil {
+				_ = formatBar.Clear()
+				logging.Errorf("js format error %s: %v, cmd output: %s", p, cmdErr, string(output))
+				errorCount++
+				// 更新进度条以反映新的错误计数
+				formatBar.Describe(fmt.Sprintf("js format | handle: %d/%d | error: %d", currentCount, totalFiles, errorCount))
+			} else {
+				_ = formatBar.Clear()
+				logging.Debugf("js format success: %s", p)
+			}
+			mu.Unlock()
+		}(i, path)
+	}
+
+	wg.Wait()
+	_ = formatBar.Finish()
 
 	logging.Infof("JS format completed: total count: %d , error count: %d", count, errorCount)
-	return err
+	return nil
 }

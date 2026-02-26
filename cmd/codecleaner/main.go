@@ -22,7 +22,7 @@ const (
 	AppName      = "CodeCleaner"
 	AppShortDesc = "code file cleaning tool"
 	AppLongDesc  = "code file cleaning tool, cleans non-code files in specified directory"
-	AppVersion   = "0.0.9"
+	AppVersion   = "0.1.0"
 	BuildDate    = "2026-02-27"
 )
 
@@ -36,6 +36,7 @@ type Options struct {
 	EnWhite    bool `short:"w" long:"en_white" description:"whitelist mode: only keep files with suffixes specified in stored preset"`
 	RmEmpty    bool `short:"e" long:"rm_empty" description:"remove empty files: remove empty directories and file paths when enabled"`
 	JsBeautify bool `short:"j" long:"js-beautify" description:"format js: call js-beautify to format js files"`
+	JsWorkers  int  `short:"J" long:"js-workers" description:"number of concurrent workers for js formatting" default:"4"`
 
 	// 统计信息显示
 	StatsExt bool `short:"s" long:"stats_ext" description:"enable stats mode: show distribution of file quantities by suffix"`
@@ -89,7 +90,7 @@ func main() {
 
 	// JS 格式化
 	if opts.JsBeautify {
-		jsCleaner := cleaner.NewJsCleaner(opts.Path, opts.DryRun)
+		jsCleaner := cleaner.NewJSFormater(opts.Path, opts.DryRun, opts.JsWorkers)
 		if err := jsCleaner.RunClean(); err != nil {
 			logging.Fatalf("js formatting failed: %v", err)
 		}

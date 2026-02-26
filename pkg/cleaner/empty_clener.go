@@ -39,7 +39,7 @@ func (c *EmptyCleaner) RunClean() error {
 	)
 
 	mode := getMode(c.DryRun)
-	fmt.Printf("start (%s) cleaning empty files and dirs...\n", mode)
+	logging.Infof("start (%s) cleaning empty files and dirs...\n", mode)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -61,11 +61,11 @@ func (c *EmptyCleaner) RunClean() error {
 	}
 
 	// === 第一阶段：删除所有空文件 ===
-	fmt.Println("stage 1/2: scanning and deleting empty files...")
+	logging.Infof("stage 1/2: scanning and deleting empty files...")
 	var allDirs []string // 收集所有目录（用于第二阶段逆序处理）
 
 	// 初始化第一阶段进度条
-	bar1 := progress.NewSpinner(fmt.Sprintf("empty cleaner (%s) ...", mode))
+	delFilesBar := progress.NewSpinner(fmt.Sprintf("empty cleaner (%s) ...", mode))
 
 	err = filepath.WalkDir(rootAbsPath, func(path string, d os.DirEntry, err error) error {
 		select {
@@ -75,8 +75,8 @@ func (c *EmptyCleaner) RunClean() error {
 		}
 
 		// 更新进度条
-		_ = bar1.Add(1)
-		bar1.Describe(fmt.Sprintf("empty cleaner | del: %d | err: %d", deletedCount, errorCount))
+		_ = delFilesBar.Add(1)
+		delFilesBar.Describe(fmt.Sprintf("empty cleaner | del: %d | err: %d", deletedCount, errorCount))
 
 		if err != nil {
 			logging.Warnf("access path error: %s - %v", path, err)
@@ -115,14 +115,14 @@ func (c *EmptyCleaner) RunClean() error {
 						deletedCount++
 					}
 				}
-				_ = bar1.Clear()
+				_ = delFilesBar.Clear()
 			}
 		}
 
 		return nil
 	})
 
-	_ = bar1.Finish()
+	_ = delFilesBar.Finish()
 
 	if err != nil && !errors.Is(err, context.Canceled) {
 		logging.Errorf("stage 1 scan error: %v", err)
@@ -130,10 +130,10 @@ func (c *EmptyCleaner) RunClean() error {
 
 	// === 第二阶段：从底向上删除空目录 ===
 	if err == nil || errors.Is(err, context.Canceled) {
-		fmt.Println("stage 2/2: cleaning empty dirs (bottom-up)...")
+		logging.Infof("stage 2/2: cleaning empty dirs (bottom-up)...")
 
 		// 初始化第二阶段进度条
-		bar2 := progress.NewProcessBarByTotalTask(int64(len(allDirs)), fmt.Sprintf("cleaner dir (%s) ...", mode))
+		delDirsBar := progress.NewProcessBar(int64(len(allDirs)), fmt.Sprintf("cleaner dir (%s) ...", mode))
 
 		// 逆序处理：确保先处理深层目录
 		for i := len(allDirs) - 1; i >= 0; i-- {
@@ -146,7 +146,7 @@ func (c *EmptyCleaner) RunClean() error {
 			}
 
 			// 更新进度条
-			_ = bar2.Add(1)
+			_ = delDirsBar.Add(1)
 
 			// 判断目录是否为空（此时已无空文件，只需看是否有子项）
 			isEmpty, err := utils.IsDirEmpty(dir)
@@ -170,18 +170,15 @@ func (c *EmptyCleaner) RunClean() error {
 						deletedCount++
 					}
 				}
-				_ = bar2.Clear()
+				_ = delDirsBar.Clear()
 			}
 		}
-		_ = bar2.Finish()
+		_ = delDirsBar.Finish()
 	}
 
 	c.printSummary(totalCount, deletedCount, errorCount, startTime, err)
 	return nil
 }
-
-// printProgress 输出进度 - 已废弃
-// func (c *EmptyCleaner) printProgress(...) {}
 
 // printSummary 输出最终统计
 func (c *EmptyCleaner) printSummary(total, deleted, errors int, start time.Time, runErr error) {

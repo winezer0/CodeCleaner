@@ -54,7 +54,7 @@ func (c *SuffixCleaner) RunClean() error {
 	)
 
 	mode := getMode(c.DryRun)
-	fmt.Printf("start (%s) scanning and deleting files...\n", mode)
+	logging.Infof("start (%s) scanning and deleting files...\n", mode)
 
 	// 上下文管理（处理中断信号）
 	ctx, cancel := context.WithCancel(context.Background())
@@ -216,10 +216,7 @@ func (c *SuffixCleaner) deleteFile(path string, deletedCount, errorCount *int) {
 // 输出最终统计信息
 func (c *SuffixCleaner) printSummary(total, deleted, errorCount int, startTime time.Time, walkErr error) {
 	elapsed := time.Since(startTime).Truncate(time.Second)
-	mode := "actual"
-	if c.DryRun {
-		mode = "dryRun"
-	}
+	mode := getMode(c.DryRun)
 	fmt.Printf("\n%s cleanup complete! time: %v\n", mode, elapsed)
 	fmt.Printf("stats: total processed %d items (incl dirs), successfully processed %d items, errors %d\n", total, deleted, errorCount)
 
