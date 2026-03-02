@@ -117,5 +117,141 @@ presets:
       - xml
       - yml
       - yaml
+      - jspx
+      - html
+      - ftl
+    remove:
+    rmdirs:
+  php:
+    description: "常见php文件清理文档"
+    stored:
+      - php
+      - tpl
+      - vue
+    remove:
+    rmdirs:
+  dotnet:
+    description: "常见dotnet文件清理文档"
+    stored:
+      - cs
+      - vb
+      - fs
+      - aspx
+      - ascx
+      - asmx
+      - svc
+      - cshtml
+      - vbhtml
+      - config
+      - json
+      - xml
+      - resx
+      - sln
+      - csproj
+      - vbproj
+      - razor
+      - user
+    remove:
+    rmdirs:
+  # 前端开发
+  front:
+    description: "常见web前端文件清理文档"
+    stored:
+      - html
+      - htm
+      - css
+      - scss
+      - less
+      - js
+      - ts
+      - jsx
+      - tsx
+      - vue
+      - svelte
+      - astro
+    remove:
+    rmdirs:
+
+  # Python
+  python:
+    description: "常见python文件清理文档"
+    stored:
+      - py
+      - pyw
+      - ipynb
+      - yaml
+      - yml
+      - json
+      - csv
+    remove:
+    rmdirs:
+
+  # Go 语言
+  go:
+    description: "常见go文件清理文档"
+    stored:
+      - go
+      - mod
+      - sum
+      - yaml
+      - yml
+      - json
+    remove:
+    rmdirs:
+
+  # Node.js / 服务端JS
+  node:
+    description: "常见nodejs文件清理文档"
+    stored:
+      - js
+      - ts
+      - mjs
+      - cjs
+      - json
+      - yaml
+      - yml
+      - html
+      - vue
+      - ejs
+    remove:
+    rmdirs:
+
+  # C / C++
+  cpp:
+    description: "常见c/c++文件清理文档"
+    stored:
+      - c
+      - cpp
+      - cc
+      - h
+      - hpp
+      - cmake
+      - in
+    remove:
+    rmdirs:
+
+  # 移动端开发
+  mobile:
+    description: "常见移动端开发文件清理文档"
+    stored:
+      - swift
+      - h
+      - m
+      - mm
+      - kt
+      - java
+      - xml
+      - json
+    remove:
+    rmdirs:
+
+  # Ruby
+  ruby:
+    description: "常见ruby文件清理文档"
+    stored:
+      - rb
+      - erb
+      - rake
+      - gemfile
     remove:
     rmdirs:

@@ -17,7 +17,7 @@ for /d %%i in (cmd\*) do (
         
         echo Building !exe_name!...
         
-        go build -o bin\!exe_name! %%i\main.go
+        go build -v -trimpath -ldflags "-s -w" -o bin\!exe_name! %%i\main.go
         
         if !errorlevel! equ 0 (
             echo Successfully built !exe_name!
@@ -31,4 +31,4 @@ for /d %%i in (cmd\*) do (
 
 echo.
 echo Build process completed.
-pause
+::pause
