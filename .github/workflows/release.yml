@@ -62,13 +62,23 @@ jobs:
           fi
           go build -v -trimpath -ldflags "-s -w" -o ${{ matrix.asset_name }} ./cmd/codecleaner
 
-      # === 核心：根据触发方式决定如何发布 ===
+      # 新增：压缩二进制文件为 tar.gz
+      - name: Compress binary with tar.gz
+        shell: bash
+        run: |
+          BIN="${{ matrix.asset_name }}"
+          ARCHIVE="${BIN}.tar.gz"
+          tar -czvf "$ARCHIVE" "$BIN"
+          rm -f "$BIN"  # 压缩后删除原始 bin，只保留压缩包
+
+      # 上传压缩包（Release 自动触发）
       - name: Upload Release Asset (from existing release)
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.asset_name }}
+          files: ${{ matrix.asset_name }}.tar.gz
 
+      # 手动触发：创建 Release 并上传压缩包
       - name: Create or Update Release (from manual trigger)
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
@@ -77,4 +87,4 @@ jobs:
           name: Release ${{ github.event.inputs.version }}
           draft: false
           prerelease: ${{ contains(github.event.inputs.version, 'alpha') || contains(github.event.inputs.version, 'beta') || contains(github.event.inputs.version, 'rc') }}
-          files: ${{ matrix.asset_name }}
+          files: ${{ matrix.asset_name }}.tar.gz
