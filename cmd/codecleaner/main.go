@@ -3,9 +3,10 @@ package main
 import (
 	"codecleaner/pkg/cleaner"
 	"codecleaner/pkg/filestats"
+	"os"
+
 	"github.com/winezer0/xutils/logging"
 	"github.com/winezer0/xutils/utils"
-	"os"
 )
 
 func main() {
@@ -30,8 +31,8 @@ func main() {
 	}
 
 	// 按后缀进行清理
-	if opts.Preset != "" {
-		preset := initPresetConfig(opts.Preset, opts.PresetConfig)
+	if opts.PresetName != "" {
+		preset := initPresetConfig(opts.PresetName, opts.ConfigPath)
 
 		// 创建清理器并运行
 		if preset != nil {
@@ -41,10 +42,10 @@ func main() {
 					logging.Fatalf("failed to clean suffix file list: %v", err)
 				}
 			} else {
-				logging.Fatalf("current preset (%s) has no valid data configured: %s", opts.Preset, utils.ToJSON(preset))
+				logging.Fatalf("current preset (%s) has no valid data configured: %s", opts.PresetName, utils.ToJSON(preset))
 			}
 		} else {
-			logging.Fatalf("failed to initialize detailed config for preset (%s)!", opts.Preset)
+			logging.Fatalf("failed to initialize detailed config for preset (%s)!", opts.PresetName)
 		}
 	}
 

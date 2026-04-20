@@ -2,16 +2,16 @@ package main
 
 import (
 	"codecleaner/internal/config"
-	"codecleaner/internal/embeds"
 	"errors"
 	"fmt"
-	"github.com/jessevdk/go-flags"
-	"github.com/winezer0/xutils/logging"
-	"github.com/winezer0/xutils/utils"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/jessevdk/go-flags"
+	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/xutils/utils"
 )
 
 // 版本信息常量（根据实际情况修改）
@@ -19,15 +19,19 @@ const (
 	AppName      = "CodeCleaner"
 	AppShortDesc = "code file cleaning tool"
 	AppLongDesc  = "code file cleaning tool, cleans non-code files in specified directory"
-	AppVersion   = "0.1.1"
+	AppVersion   = "0.1.2"
 	BuildDate    = "2026-04-20"
 )
 
 // Options command line options
 type Options struct {
-	Path         string `short:"p" long:"path" description:"scan start directory path"`
-	Preset       string `short:"P" long:"preset" description:"use preset cleaning rules (default: common) or ext/dir: comma-separated suffix list (e.g., ext: exe,txt)"`
-	PresetConfig string `short:"c" long:"preset_config" description:"custom yaml config file path" default:"cleaner.yaml"`
+	Path       string `short:"p" long:"path" description:"scan start directory path"`
+	PresetName string `short:"P" long:"preset" description:"use preset rules or ext/dir: comma-separated suffix list (e.g., ext: exe,txt)" default:"common"`
+	ConfigPath string `short:"c" long:"config" description:"custom yaml config file path"`
+
+	// GenerateConfig 生成默认配置文件
+	ShowPresetList bool `long:"list" description:"list all presets"`
+	GenerateConfig bool `long:"gen" description:"gen default config to <ConfigPath>"`
 
 	DryRun     bool `short:"d" long:"dry_run" description:"preview mode: show files to be deleted, do not execute deletion"`
 	EnWhite    bool `short:"w" long:"en_white" description:"whitelist mode: only keep files with suffixes specified in stored preset"`
@@ -85,6 +89,29 @@ func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 		os.Exit(1)
 	}
 
+	// 处理生成配置文件命令
+	if opts.GenerateConfig {
+		configPath := opts.ConfigPath
+		if configPath == "" {
+			configPath = AppName + ".yaml"
+		}
+		if err := config.GenDefaultConfig(configPath); err != nil {
+			logging.Fatalf("Failed to generate config file: %v", err)
+		}
+		logging.Infof("Default config file has been generated: %s", configPath)
+		os.Exit(0)
+	}
+
+	// 输出当前配置文件中的所有preset名称
+	if opts.ShowPresetList {
+		conf, err := config.LoadConfig(opts.ConfigPath, AppName)
+		if err != nil {
+			logging.Fatalf("load config: %s error: %v", conf, err)
+		}
+		config.PrintPresetSummary(conf)
+		os.Exit(0)
+	}
+
 	// 检查 js-beautify 依赖
 	if opts.JsBeautify {
 		if err := exec.Command("js-beautify", "--version").Run(); err != nil {
@@ -111,15 +138,13 @@ func initPresetConfig(presetStr string, presetFile string) *config.PresetConfig 
 		preset = config.NewPresetConfig("temp list", extList, extList, dirList)
 		logging.Infof("cmd init preset: %s", utils.ToJSON(preset))
 	} else {
-		// 从配置文件中获取 preset
-		if utils.IsEmptyFile(presetFile) {
-			utils.WriteToFile(presetFile, embeds.GetConfig())
-			logging.Debugf("Success creat config from embed: %v", presetFile)
-		}
-		if conf, err := config.LoadConfig(presetFile); err != nil {
+		conf, err := config.LoadConfig(presetFile, AppName)
+		if err != nil {
 			logging.Errorf("load config: %s error: %v", conf, err)
-		} else if preset, _ = conf.GetPreset(presetStr); preset == nil {
-			logging.Errorf("config %s not contain key: %s and custom preset not like (like ext:xxx,xxx)", conf, presetStr)
+		} else {
+			if preset, _ = conf.GetPreset(presetStr); preset == nil {
+				logging.Errorf("config %s not contain key: %s and custom preset not like (like ext:xxx,xxx)", conf, presetStr)
+			}
 		}
 	}
 	return preset

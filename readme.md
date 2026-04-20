@@ -28,28 +28,27 @@ go build -o codecleaner main.go
 
 ### 命令行支持
 ```
-Usage:
-  CodeCleaner [OPTIONS]
+用法：
+CodeCleaner [选项]
+代码文件清理工具，清理指定目录中的非代码文件
+/p /path: 扫描起始目录路径
+/P, /preset: 使用预设名称作为清理规则（默认：common）或 ext/dir: 以逗号分隔的后缀列表（例如，ext: exe,txt）
+/c, /config: 自定义 yaml 配置文件路径
+/list 列出所有预设
+/gen 生成默认配置到 <ConfigPath>
+/d, /dry_run 预览模式：显示将要删除的文件，不执行删除 /en_white 白名单模式：仅保留存储预设中指定后缀的文件
+/e, /rm_empty 删除空文件：启用时删除空目录和文件路径
+/j, /js-beautify 格式化 js：调用 js-beautify 格式化 js /js-workers: js 格式化的并发工作进程数（默认：4）
+/s, /stats_ext 启用统计模式：按后缀显示文件数量分布
+/S, /stats_dir 启用统计模式：按目录显示文件数量分布
+/v, /version 输出版本信息
+/lf: 日志文件路径（默认：null）
+/ll: 日志级别（debug/info/warn/error）（默认：info）
+/cf: 控制台日志格式（T L C M F 组合或 off|null 禁用）（默认：M）
 
-代码文件清理工具, 清理指定目录中的非代码文件
-
-Application Options:
-  -p, -path:           扫描起始目录路径
-  -P, -preset:         使用预设清理规则(默认common) 或 ext-dir:逗号分割的后缀列表 (如ext: exe,txt)
-  -c, -preset_config:  自定义 YAML 配置文件路径 (default: cleaner.yaml)
-  -d, -dry_run         预览尝试模式：显示将删除的文件，不执行删除
-  -w, -en_white        白名单模式：仅保留预设中 stored 指定的文件后缀类型
-  -e, -rm_empty        移除空文件：启用时移除空目录和空文件路径
-  -j, -js-beautify     格式化js: 调用js-beautify格式化JS文件
-  -s, -stats_ext       启用统计模式：显示目录下(后缀类型) 数量分布
-  -S, -stats_dir       启用统计模式：显示目录下(目录文件) 数量分布
-  -v, -version         输出版本信息
-      -lf:             Log file path (default: null)
-      -ll:             Log level (debug-info-warn-error) (default: info)
-      -cf:             Console log format (T L C M F combination or off|null to disable) (default: M)
-
-Help Options:
-  -h, -help            Show this help message
+帮助选项：
+/?                 显示此帮助信息
+/h, /help          显示此帮助信息
 ```
 ### 常用命令
 

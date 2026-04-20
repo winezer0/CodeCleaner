@@ -36,6 +36,7 @@ presets:
       - ogg
       # 压缩包（原有+补充）
       - zip
+      - tar
       - tar.gz
       - gz
       - bz2
