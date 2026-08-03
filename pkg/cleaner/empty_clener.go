@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/winezer0/xutils/progress"
-	"github.com/winezer0/xutils/utils"
+	"codecleaner/internal/progress"
+	"codecleaner/internal/utils"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/slogs"
 )
 
 // EmptyCleaner 清理器配置
@@ -39,7 +39,7 @@ func (c *EmptyCleaner) RunClean() error {
 	)
 
 	mode := getMode(c.DryRun)
-	logging.Infof("start (%s) cleaning empty files and dirs...\n", mode)
+	slogs.Infof("start (%s) cleaning empty files and dirs...\n", mode)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -61,7 +61,7 @@ func (c *EmptyCleaner) RunClean() error {
 	}
 
 	// === 第一阶段：删除所有空文件 ===
-	logging.Infof("stage 1/2: scanning and deleting empty files...")
+	slogs.Infof("stage 1/2: scanning and deleting empty files...")
 	var allDirs []string // 收集所有目录（用于第二阶段逆序处理）
 
 	// 初始化第一阶段进度条
@@ -79,13 +79,13 @@ func (c *EmptyCleaner) RunClean() error {
 		delFilesBar.Describe(fmt.Sprintf("empty cleaner | del: %d | err: %d", deletedCount, errorCount))
 
 		if err != nil {
-			logging.Warnf("access path error: %s - %v", path, err)
+			slogs.Warnf("access path error: %s - %v", path, err)
 			errorCount++
 			return nil
 		}
 
 		if !isSubPath(path, rootAbsPath) {
-			logging.Warnf("path is outside the dirrange: %s not in %s", path, rootAbsPath)
+			slogs.Warnf("path is outside the dirrange: %s not in %s", path, rootAbsPath)
 			return filepath.SkipDir
 		}
 
@@ -97,21 +97,21 @@ func (c *EmptyCleaner) RunClean() error {
 			totalCount++
 			info, err := d.Info()
 			if err != nil {
-				logging.Warnf("failed to get file info: %s - %v", path, err)
+				slogs.Warnf("failed to get file info: %s - %v", path, err)
 				errorCount++
 				return nil
 			}
 
 			if info.Size() == 0 {
 				if c.DryRun {
-					logging.Infof("[dryrun] would delete empty file: %s", path)
+					slogs.Infof("[dryrun] would delete empty file: %s", path)
 					deletedCount++
 				} else {
 					if err := os.Remove(path); err != nil {
-						logging.Warnf("failed to delete empty file: %s - %v", path, err)
+						slogs.Warnf("failed to delete empty file: %s - %v", path, err)
 						errorCount++
 					} else {
-						logging.Infof("successfully deleted empty file: %s", path)
+						slogs.Infof("successfully deleted empty file: %s", path)
 						deletedCount++
 					}
 				}
@@ -125,12 +125,12 @@ func (c *EmptyCleaner) RunClean() error {
 	_ = delFilesBar.Finish()
 
 	if err != nil && !errors.Is(err, context.Canceled) {
-		logging.Errorf("stage 1 scan error: %v", err)
+		slogs.Errorf("stage 1 scan error: %v", err)
 	}
 
 	// === 第二阶段：从底向上删除空目录 ===
 	if err == nil || errors.Is(err, context.Canceled) {
-		logging.Infof("stage 2/2: cleaning empty dirs (bottom-up)...")
+		slogs.Infof("stage 2/2: cleaning empty dirs (bottom-up)...")
 
 		// 初始化第二阶段进度条
 		delDirsBar := progress.NewProcessBar(int64(len(allDirs)), fmt.Sprintf("cleaner dir (%s) ...", mode))
@@ -151,7 +151,7 @@ func (c *EmptyCleaner) RunClean() error {
 			// 判断目录是否为空（此时已无空文件，只需看是否有子项）
 			isEmpty, err := utils.IsDirEmpty(dir)
 			if err != nil {
-				logging.Warnf("failed to check if dir is empty: %s - %v", dir, err)
+				slogs.Warnf("failed to check if dir is empty: %s - %v", dir, err)
 				errorCount++
 				continue
 			}
@@ -159,14 +159,14 @@ func (c *EmptyCleaner) RunClean() error {
 			if isEmpty {
 				totalCount++ // 目录也计入总数
 				if c.DryRun {
-					logging.Infof("[dryrun] would delete empty dir: %s", dir)
+					slogs.Infof("[dryrun] would delete empty dir: %s", dir)
 					deletedCount++
 				} else {
 					if err := os.Remove(dir); err != nil {
-						logging.Warnf("failed to delete empty dir: %s - %v", dir, err)
+						slogs.Warnf("failed to delete empty dir: %s - %v", dir, err)
 						errorCount++
 					} else {
-						logging.Infof("successfully deleted empty dir: %s", dir)
+						slogs.Infof("successfully deleted empty dir: %s", dir)
 						deletedCount++
 					}
 				}

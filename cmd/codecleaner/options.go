@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/jessevdk/go-flags"
-	"github.com/winezer0/xutils/logging"
-	"github.com/winezer0/xutils/utils"
+	"github.com/winezer0/slogs"
+
+	"codecleaner/internal/utils"
 )
 
 // 版本信息常量（根据实际情况修改）
@@ -49,6 +50,12 @@ type Options struct {
 	ConsoleFormat string `long:"cf" description:"Console log format (T L C M F combination or off|null to disable)" default:"M"`
 }
 
+// fatalf 记录错误日志并退出程序（slogs 不提供 Fatalf，封装等价行为）
+func fatalf(format string, args ...any) {
+	slogs.Errorf(format, args...)
+	os.Exit(1)
+}
+
 // InitOptionsArgs 常用的工具函数，解析parser和logging配置
 func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 	opts := &Options{}
@@ -82,8 +89,8 @@ func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 	}
 
 	// 初始化日志器
-	logCfg := logging.NewLogConfig(opts.LogLevel, opts.LogFile, opts.ConsoleFormat)
-	if err := logging.InitLogger(logCfg); err != nil {
+	logCfg := slogs.NewConfig(opts.LogLevel, opts.LogFile, opts.ConsoleFormat)
+	if err := slogs.Init(logCfg); err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
@@ -95,9 +102,9 @@ func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 			configPath = AppName + ".yaml"
 		}
 		if err := config.GenDefaultConfig(configPath); err != nil {
-			logging.Fatalf("Failed to generate config file: %v", err)
+			fatalf("Failed to generate config file: %v", err)
 		}
-		logging.Infof("Default config file has been generated: %s", configPath)
+		slogs.Infof("Default config file has been generated: %s", configPath)
 		os.Exit(0)
 	}
 
@@ -105,7 +112,7 @@ func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 	if opts.ShowPresetList {
 		conf, err := config.LoadConfig(opts.ConfigPath, AppName)
 		if err != nil {
-			logging.Fatalf("load config: %s error: %v", conf, err)
+			fatalf("load config: %s error: %v", conf, err)
 		}
 		config.PrintPresetSummary(conf)
 		os.Exit(0)
@@ -113,7 +120,7 @@ func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 
 	// 检查是否输入 Path
 	if opts.Path == "" {
-		logging.Fatalf("code file directory must be specified!!!")
+		fatalf("code file directory must be specified!!!")
 	}
 
 	return opts, parser
@@ -125,17 +132,17 @@ func initPresetConfig(presetStr string, presetFile string) *config.PresetConfig 
 	if strings.Contains(presetStr, "ext:") || strings.Contains(presetStr, "dir:") {
 		// 从输入命令行中解析出 preset
 		extList, dirList := parseCmdExtDir(presetStr)
-		extList = utils.UniqueSlice(utils.ToLowerKeys(extList), true, true)
-		dirList = utils.UniqueSlice(utils.ToLowerKeys(dirList), true, true) // 仅在黑名单模式下有效,用于删除自定义目录，很少用
+		extList = utils.SliceUnique(utils.ToLowerKeys(extList), true, true)
+		dirList = utils.SliceUnique(utils.ToLowerKeys(dirList), true, true) // 仅在黑名单模式下有效,用于删除自定义目录，很少用
 		preset = config.NewPresetConfig("temp list", extList, extList, dirList)
-		logging.Infof("cmd init preset: %s", utils.ToJSON(preset))
+		slogs.Infof("cmd init preset: %s", utils.ToJSON(preset))
 	} else {
 		conf, err := config.LoadConfig(presetFile, AppName)
 		if err != nil {
-			logging.Errorf("load config: %s error: %v", conf, err)
+			slogs.Errorf("load config: %s error: %v", conf, err)
 		} else {
 			if preset, _ = conf.GetPreset(presetStr); preset == nil {
-				logging.Errorf("config %s not contain key: %s and custom preset not like (like ext:xxx,xxx)", conf, presetStr)
+				slogs.Errorf("config %s not contain key: %s and custom preset not like (like ext:xxx,xxx)", conf, presetStr)
 			}
 		}
 	}

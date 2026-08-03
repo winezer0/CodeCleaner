@@ -8,9 +8,9 @@ import (
 	"sync"
 
 	"github.com/winezer0/jsbeautify"
-	"github.com/winezer0/xutils/progress"
+	"github.com/winezer0/slogs"
 
-	"github.com/winezer0/xutils/logging"
+	"codecleaner/internal/progress"
 )
 
 // JSFormater JS格式化清理器
@@ -80,7 +80,7 @@ func formatJSFile(path string) error {
 // RunClean 执行JS格式化操作
 func (c *JSFormater) RunClean() error {
 	mode := getMode(c.DryRun)
-	logging.Infof("start (%s) JS code formatting...", mode)
+	slogs.Infof("start (%s) JS code formatting...", mode)
 
 	// 验证根路径
 	rootAbsPath, err := filepath.Abs(c.Path)
@@ -92,14 +92,14 @@ func (c *JSFormater) RunClean() error {
 	var errorCount int
 
 	// 第一步：收集所有符合条件的 JS 文件
-	logging.Infof("stage 1/2: collect all the js files ...")
+	slogs.Infof("stage 1/2: collect all the js files ...")
 	var jsFiles []string
 	collectBar := progress.NewSpinner(fmt.Sprintf("collect JS files (%s) ...", mode))
 
 	err = filepath.WalkDir(rootAbsPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			_ = collectBar.Clear()
-			logging.Warnf("access path error: %s - %v", path, err)
+			slogs.Warnf("access path error: %s - %v", path, err)
 			errorCount++
 			return nil
 		}
@@ -121,14 +121,14 @@ func (c *JSFormater) RunClean() error {
 	}
 
 	totalFiles := len(jsFiles)
-	logging.Infof("found %d JS files to process", totalFiles)
+	slogs.Infof("found %d JS files to process", totalFiles)
 
 	if totalFiles == 0 {
 		return nil
 	}
 
 	// 第二步：执行格式化操作
-	logging.Infof("stage 2/2: format all the js files (workers: %d) ...", c.Workers)
+	slogs.Infof("stage 2/2: format all the js files (workers: %d) ...", c.Workers)
 	formatBar := progress.NewProcessBar(int64(totalFiles), fmt.Sprintf("js format (%s) ...", mode))
 
 	var wg sync.WaitGroup
@@ -160,14 +160,14 @@ func (c *JSFormater) RunClean() error {
 			if err := formatJSFile(p); err != nil {
 				mu.Lock()
 				_ = formatBar.Clear()
-				logging.Errorf("js format error %s: %v", p, err)
+				slogs.Errorf("js format error %s: %v", p, err)
 				errorCount++
 				// 更新进度条以反映新的错误计数
 				formatBar.Describe(fmt.Sprintf("js format | handle: %d/%d | error: %d", currentCount, totalFiles, errorCount))
 				mu.Unlock()
 			} else {
 				_ = formatBar.Clear()
-				logging.Debugf("js format success: %s", p)
+				slogs.Debugf("js format success: %s", p)
 			}
 		}(i, path)
 	}
@@ -175,6 +175,6 @@ func (c *JSFormater) RunClean() error {
 	wg.Wait()
 	_ = formatBar.Finish()
 
-	logging.Infof("JS format completed: total count: %d , error count: %d", count, errorCount)
+	slogs.Infof("JS format completed: total count: %d , error count: %d", count, errorCount)
 	return nil
 }

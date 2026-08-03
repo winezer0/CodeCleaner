@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/winezer0/xutils/progress"
+	"codecleaner/internal/progress"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/schollz/progressbar/v3"
-	"github.com/winezer0/xutils/logging"
+	"github.com/winezer0/slogs"
 )
 
 // SuffixCleaner 清理选项
@@ -54,7 +54,7 @@ func (c *SuffixCleaner) RunClean() error {
 	)
 
 	mode := getMode(c.DryRun)
-	logging.Infof("start (%s) scanning and deleting files...\n", mode)
+	slogs.Infof("start (%s) scanning and deleting files...\n", mode)
 
 	// 上下文管理（处理中断信号）
 	ctx, cancel := context.WithCancel(context.Background())
@@ -94,7 +94,7 @@ func (c *SuffixCleaner) RunClean() error {
 
 		// 处理文件访问错误
 		if err != nil {
-			logging.Warnf("failed to access path: %s - %v", path, err)
+			slogs.Warnf("failed to access path: %s - %v", path, err)
 			errorCount++
 			return nil
 		}
@@ -106,14 +106,14 @@ func (c *SuffixCleaner) RunClean() error {
 		// 获取文件信息（WalkDir需要显式获取，减少不必要的系统调用）
 		info, err := d.Info()
 		if err != nil {
-			logging.Warnf("failed to get info: %s - %v", path, err)
+			slogs.Warnf("failed to get info: %s - %v", path, err)
 			errorCount++
 			return nil
 		}
 
 		// 验证当前路径是否在根路径范围内（防止路径穿越）
 		if !isSubPath(path, rootAbsPath) {
-			logging.Warnf("path out of range: %s not in %s", path, rootAbsPath)
+			slogs.Warnf("path out of range: %s not in %s", path, rootAbsPath)
 			return filepath.SkipDir
 		}
 
@@ -149,15 +149,15 @@ func (c *SuffixCleaner) handleRmdirs(path string, rmdirs []string, totalCount, d
 	// 检查当前目录名是否在目标列表中
 	if isDirInList(currDirName, rmdirs) {
 		if c.DryRun {
-			logging.Infof("[dryrun] would delete dir: %s", path)
+			slogs.Infof("[dryrun] would delete dir: %s", path)
 			*deletedCount++
 		} else {
 			// 实际删除目录（递归删除所有内容）
 			if err := os.RemoveAll(path); err != nil {
-				logging.Warnf("failed to delete dir: %s - %v", path, err)
+				slogs.Warnf("failed to delete dir: %s - %v", path, err)
 				*errorCount++
 			} else {
-				logging.Infof("successfully deleted dir: %s", path)
+				slogs.Infof("successfully deleted dir: %s", path)
 				*deletedCount++
 			}
 		}
@@ -175,7 +175,7 @@ func (c *SuffixCleaner) handleFiles(path string, storedExts, removeExts []string
 	if c.EnWhite {
 		// 白名单模式处理 （使用stored列表）
 		if len(storedExts) == 0 {
-			logging.Warn("whitelist mode: no stored list configured, skipping")
+			slogs.Warn("whitelist mode: no stored list configured, skipping")
 			return
 		}
 
@@ -186,7 +186,7 @@ func (c *SuffixCleaner) handleFiles(path string, storedExts, removeExts []string
 	} else {
 		// 普通模式处理（使用Remove列表）
 		if len(removeExts) == 0 {
-			logging.Warn("blacklist mode: no remove list configured, skipping")
+			slogs.Warn("blacklist mode: no remove list configured, skipping")
 			return
 		}
 
@@ -199,16 +199,16 @@ func (c *SuffixCleaner) handleFiles(path string, storedExts, removeExts []string
 // 执行文件删除（根据Try模式决定是否实际删除）
 func (c *SuffixCleaner) deleteFile(path string, deletedCount, errorCount *int) {
 	if c.DryRun {
-		logging.Infof("[dryrun] would delete file: %s", path)
+		slogs.Infof("[dryrun] would delete file: %s", path)
 		*deletedCount++
 		return
 	}
 
 	if err := os.Remove(path); err != nil {
-		logging.Warnf("failed to delete file: %s - %v", path, err)
+		slogs.Warnf("failed to delete file: %s - %v", path, err)
 		*errorCount++
 	} else {
-		logging.Infof("successfully deleted file: %s", path)
+		slogs.Infof("successfully deleted file: %s", path)
 		*deletedCount++
 	}
 }
