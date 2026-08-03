@@ -3,11 +3,11 @@ package cleaner
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/winezer0/jsbeautify"
 	"github.com/winezer0/xutils/progress"
 
 	"github.com/winezer0/xutils/logging"
@@ -47,6 +47,34 @@ func isJSFile(filename string) bool {
 	ext := strings.ToLower(filepath.Ext(filename))
 	_, exists := jsExtsMap[ext]
 	return exists
+}
+
+// formatJSFile 使用纯 Go 库格式化单个 JS 文件（原地写回，内容无变化时跳过）
+func formatJSFile(path string) error {
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read file error: %v", err)
+	}
+
+	// 使用默认选项调用 jsbeautify 纯 Go 库
+	formatted, err := jsbeautify.Format(string(source))
+	if err != nil {
+		return fmt.Errorf("format error: %v", err)
+	}
+
+	if string(source) == formatted {
+		return nil
+	}
+
+	// 写回时保留原始文件权限
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat file error: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(formatted), info.Mode()); err != nil {
+		return fmt.Errorf("write file error: %v", err)
+	}
+	return nil
 }
 
 // RunClean 执行JS格式化操作
@@ -128,22 +156,19 @@ func (c *JSFormater) RunClean() error {
 				return
 			}
 
-			// 执行 js-beautify
-			cmd := exec.Command("js-beautify", "-r", p)
-			output, cmdErr := cmd.CombinedOutput()
-
-			mu.Lock()
-			if cmdErr != nil {
+			// 使用 jsbeautify 纯 Go 库执行格式化
+			if err := formatJSFile(p); err != nil {
+				mu.Lock()
 				_ = formatBar.Clear()
-				logging.Errorf("js format error %s: %v, cmd output: %s", p, cmdErr, string(output))
+				logging.Errorf("js format error %s: %v", p, err)
 				errorCount++
 				// 更新进度条以反映新的错误计数
 				formatBar.Describe(fmt.Sprintf("js format | handle: %d/%d | error: %d", currentCount, totalFiles, errorCount))
+				mu.Unlock()
 			} else {
 				_ = formatBar.Clear()
 				logging.Debugf("js format success: %s", p)
 			}
-			mu.Unlock()
 		}(i, path)
 	}
 

@@ -5,7 +5,9 @@ go 1.25.5
 require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/schollz/progressbar/v3 v3.19.0
+	github.com/winezer0/jsbeautify v0.0.1
 	github.com/winezer0/xutils v0.2.4
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -18,5 +20,4 @@ require (
 	golang.org/x/term v0.42.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

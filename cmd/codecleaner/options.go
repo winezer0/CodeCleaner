@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 
@@ -19,8 +18,8 @@ const (
 	AppName      = "CodeCleaner"
 	AppShortDesc = "code file cleaning tool"
 	AppLongDesc  = "code file cleaning tool, cleans non-code files in specified directory"
-	AppVersion   = "0.1.2"
-	BuildDate    = "2026-04-20"
+	AppVersion   = "0.1.3"
+	BuildDate    = "2026-08-03"
 )
 
 // Options command line options
@@ -36,8 +35,8 @@ type Options struct {
 	DryRun     bool `short:"d" long:"dry_run" description:"preview mode: show files to be deleted, do not execute deletion"`
 	EnWhite    bool `short:"w" long:"en_white" description:"whitelist mode: only keep files with suffixes specified in stored preset"`
 	RmEmpty    bool `short:"e" long:"rm_empty" description:"remove empty files: remove empty directories and file paths when enabled"`
-	JsBeautify bool `short:"j" long:"js-beautify" description:"format js: call js-beautify to format js files"`
-	JsWorkers  int  `short:"J" long:"js-workers" description:"number of concurrent workers for js formatting" default:"4"`
+	JsBeautify bool `short:"j" long:"js-beautify" description:"format js: format js files with pure go jsbeautify library"`
+	JsWorkers  int  `short:"J" long:"js-workers" description:"number of concurrent goroutines for js formatting" default:"4"`
 
 	// 统计信息显示
 	StatsExt bool `short:"s" long:"stats_ext" description:"enable stats mode: show distribution of file quantities by suffix"`
@@ -110,13 +109,6 @@ func InitOptionsArgs(minimumParams int) (*Options, *flags.Parser) {
 		}
 		config.PrintPresetSummary(conf)
 		os.Exit(0)
-	}
-
-	// 检查 js-beautify 依赖
-	if opts.JsBeautify {
-		if err := exec.Command("js-beautify", "--version").Run(); err != nil {
-			logging.Fatalf("js-beautify command not found, please install: npm install -g js-beautify")
-		}
 	}
 
 	// 检查是否输入 Path

@@ -11,7 +11,7 @@
 - 默认黑名单模式(仅移除指定后缀或预设后缀)
 - 支持白名单模式(仅保留指定后缀或预设后缀) 
 - 后缀配置时, 支持使用 none 表示 无后缀文件
-- 支持 JS 代码格式化 (依赖 node 程序 js-beautify)
+- 支持 JS 代码格式化 (纯 Go 实现, 基于 github.com/winezer0/jsbeautify, 无需 Node.js 环境)
 - 使用 YAML 配置文件 实现预设的清理和存储后缀
 
 ## 安装
@@ -38,7 +38,7 @@ CodeCleaner [选项]
 /gen 生成默认配置到 <ConfigPath>
 /d, /dry_run 预览模式：显示将要删除的文件，不执行删除 /en_white 白名单模式：仅保留存储预设中指定后缀的文件
 /e, /rm_empty 删除空文件：启用时删除空目录和文件路径
-/j, /js-beautify 格式化 js：调用 js-beautify 格式化 js /js-workers: js 格式化的并发工作进程数（默认：4）
+/j, /js-beautify 格式化 js：使用纯 Go jsbeautify 库格式化 js /js-workers: js 格式化的并发 goroutine 数（默认：4）
 /s, /stats_ext 启用统计模式：按后缀显示文件数量分布
 /S, /stats_dir 启用统计模式：按目录显示文件数量分布
 /v, /version 输出版本信息
